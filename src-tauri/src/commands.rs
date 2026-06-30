@@ -203,10 +203,13 @@ pub async fn save_setting(
 }
 
 #[tauri::command]
-pub async fn get_market_indices(_state: State<'_, AppState>) -> Result<Vec<(String, String)>, String> {
+pub async fn get_market_indices(_state: State<'_, AppState>) -> Result<Vec<scanner::engine::MarketIndexInfo>, String> {
     Ok(indices::list_indices()
         .into_iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .map(|(k, v)| scanner::engine::MarketIndexInfo {
+            key: k.to_string(),
+            label: v.to_string(),
+        })
         .collect())
 }
 
