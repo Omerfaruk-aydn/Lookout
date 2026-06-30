@@ -75,6 +75,28 @@ export function ScannerView() {
     }
   };
 
+  const regions = [
+    { label: "🇺🇸 United States", keys: ["sp500", "nasdaq100", "dowjones"] },
+    { label: "🇬🇧 United Kingdom", keys: ["ftse100"] },
+    { label: "🇩🇪 Germany", keys: ["dax40"] },
+    { label: "🇫🇷 France", keys: ["cac40"] },
+    { label: "🇪🇺 Europe", keys: ["eurostoxx50"] },
+    { label: "🇯🇵 Japan", keys: ["nikkei225"] },
+    { label: "🇭🇰 Hong Kong", keys: ["hangseng"] },
+    { label: "🇨🇳 China", keys: ["sse"] },
+    { label: "🇰🇷 South Korea", keys: ["kospi"] },
+    { label: "🇹🇼 Taiwan", keys: ["twse"] },
+    { label: "🇨🇦 Canada", keys: ["tsx60"] },
+    { label: "🇧🇷 Brazil", keys: ["bovespa"] },
+    { label: "🇲🇽 Mexico", keys: ["ipc"] },
+    { label: "🇸🇦 Saudi Arabia", keys: ["tadawul"] },
+    { label: "🇹🇷 Turkey", keys: ["bist100"] },
+    { label: "🇦🇺 Australia", keys: ["asx200"] },
+    { label: "🌐 Global ETFs", keys: ["etfs"] },
+  ];
+
+  const findIndex = (key: string) => indices.find((i) => i.key === key);
+
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-sm font-semibold text-accent-blue">
@@ -104,10 +126,17 @@ export function ScannerView() {
             className="flex-1 bg-bg-tertiary text-fg-primary border border-border rounded px-3 py-1.5 text-sm"
           >
             <option value="">Select index...</option>
-            {indices.map((idx) => (
-              <option key={idx.key} value={idx.key}>
-                {idx.label}
-              </option>
+            {regions.map((region) => (
+              <optgroup key={region.label} label={region.label}>
+                {region.keys.map((key) => {
+                  const idx = findIndex(key);
+                  return idx ? (
+                    <option key={key} value={key}>
+                      {idx.label}
+                    </option>
+                  ) : null;
+                })}
+              </optgroup>
             ))}
           </select>
           <button
