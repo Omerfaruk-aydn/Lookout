@@ -93,6 +93,20 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at);
             ",
         )?;
+
+        // Migration: add web_search_result_json if missing (added after initial release)
+        let has_column: bool = self.conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('reports') WHERE name = 'web_search_result_json'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )? > 0;
+
+        if !has_column {
+            self.conn.execute_batch(
+                "ALTER TABLE reports ADD COLUMN web_search_result_json TEXT;",
+            )?;
+        }
+
         Ok(())
     }
 
