@@ -9,11 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub struct ScanJob {
-    pub ticker: String,
-    pub capture_image: bool,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanResult {
     pub ticker: String,

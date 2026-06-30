@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::data_engine::types::OhlcvBar;
 use crate::error::LookoutError;
 use serde::Deserialize;
