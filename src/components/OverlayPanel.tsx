@@ -8,8 +8,9 @@ import { ChartView } from "./ChartView";
 import { HistoryView } from "./HistoryView";
 
 import { ScannerView } from "./ScannerView";
+import { AutonomousMode } from "./AutonomousMode";
 
-type Tab = "analysis" | "watchlist" | "chart" | "history" | "scanner";
+type Tab = "analysis" | "autonomous" | "watchlist" | "scanner" | "chart" | "history";
 
 export function OverlayPanel() {
   const [activeTab, setActiveTab] = useState<Tab>("analysis");
@@ -52,6 +53,7 @@ export function OverlayPanel() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "analysis", label: "Analysis" },
+    { key: "autonomous", label: "Autonomous" },
     { key: "watchlist", label: "Watchlist" },
     { key: "scanner", label: "Scanner" },
     { key: "chart", label: "Chart" },
@@ -142,6 +144,7 @@ export function OverlayPanel() {
           </div>
         )}
 
+        {activeTab === "autonomous" && <AutonomousMode />}
         {activeTab === "watchlist" && <Watchlist />}
         {activeTab === "scanner" && <ScannerView />}
         {activeTab === "chart" && <ChartView />}

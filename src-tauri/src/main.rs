@@ -1,3 +1,4 @@
+mod autonomous;
 mod capture;
 mod commands;
 mod data_engine;
@@ -58,6 +59,17 @@ fn main() {
             commands::stop_auto_scanner,
             commands::is_scanner_running,
             commands::add_index_to_watchlist,
+            commands::start_autonomous_mode,
+            commands::stop_autonomous_mode,
+            commands::is_autonomous_running,
+            commands::get_autonomous_status,
+            commands::analyze_ticker_for_alerts,
+            commands::batch_analyze_for_signals,
+            commands::get_notifications,
+            commands::get_unread_count,
+            commands::mark_notification_read,
+            commands::mark_all_notifications_read,
+            commands::clear_old_notifications,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Lookout");

@@ -257,3 +257,117 @@ export async function stopAutoScanner(): Promise<void> {
 export async function isScannerRunning(): Promise<boolean> {
   return invoke<boolean>("is_scanner_running");
 }
+
+// ── Autonomous Mode ───────────────────────────────────────────
+
+export interface Alert {
+  id: string;
+  ticker: string;
+  alert_type: string;
+  severity: "Critical" | "High" | "Medium" | "Low";
+  title: string;
+  message: string;
+  value: number | null;
+  threshold: number | null;
+  created_at: number;
+  acknowledged: boolean;
+}
+
+export interface Notification {
+  id: string;
+  alert_id: string;
+  ticker: string;
+  title: string;
+  message: string;
+  severity: string;
+  read: boolean;
+  created_at: number;
+}
+
+export interface AutonomousStatus {
+  running: boolean;
+  last_scan_at: number | null;
+  total_scans: number;
+  total_alerts: number;
+  tickers_monitored: number;
+}
+
+export interface MarketActivity {
+  ticker: string;
+  activity_score: number;
+  price_change_pct: number;
+  volume_change_pct: number;
+  last_close: number;
+  signals: string[];
+}
+
+export async function startAutonomousMode(
+  intervalSeconds = 300,
+  useWebSearch = true
+): Promise<void> {
+  return invoke("start_autonomous_mode", {
+    intervalSeconds,
+    useWebSearch,
+  });
+}
+
+export async function stopAutonomousMode(): Promise<void> {
+  return invoke("stop_autonomous_mode");
+}
+
+export async function isAutonomousRunning(): Promise<boolean> {
+  return invoke<boolean>("is_autonomous_running");
+}
+
+export async function getAutonomousStatus(): Promise<AutonomousStatus> {
+  return invoke<AutonomousStatus>("get_autonomous_status");
+}
+
+export async function analyzeTickerForAlerts(
+  ticker: string,
+  useWebSearch = false
+): Promise<Alert[]> {
+  return invoke<Alert[]>("analyze_ticker_for_alerts", {
+    ticker,
+    useWebSearch,
+  });
+}
+
+export async function batchAnalyzeForSignals(
+  tickers: string[],
+  useWebSearch = false
+): Promise<Array<{ ticker: string; alerts: Alert[] }>> {
+  return invoke<Array<{ ticker: string; alerts: Alert[] }>>(
+    "batch_analyze_for_signals",
+    {
+      tickers,
+      useWebSearch,
+    }
+  );
+}
+
+export async function getNotifications(
+  limit = 50,
+  unreadOnly = false
+): Promise<Notification[]> {
+  return invoke<Notification[]>("get_notifications", {
+    limit,
+    unreadOnly,
+  });
+}
+
+export async function getUnreadCount(): Promise<number> {
+  return invoke<number>("get_unread_count");
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  return invoke("mark_notification_read", { id });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  return invoke("mark_all_notifications_read");
+}
+
+export async function clearOldNotifications(days: number): Promise<number> {
+  return invoke<number>("clear_old_notifications", { days });
+}

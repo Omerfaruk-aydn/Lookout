@@ -1,3 +1,4 @@
+use crate::autonomous::{self, alerts, notifications};
 use crate::capture::{self, screenshot::Rect};
 use crate::data_engine::TechnicalSnapshot;
 use crate::db::{RegionConfig, RegionRect, ReportRecord, Setting, WatchlistItem};
@@ -279,4 +280,173 @@ pub async fn add_index_to_watchlist(
         }
     }
     Ok(count)
+}
+
+#[tauri::command]
+pub async fn start_autonomous_mode(
+    state: State<'_, AppState>,
+    interval_seconds: Option<u64>,
+    use_web_search: Option<bool>,
+) -> Result<(), String> {
+    let db_path = get_db_path_for_autonomous();
+    autonomous::scheduler::start_autonomous_mode(
+        state.db.clone(),
+        db_path,
+        state.sidecar_vision_path.clone(),
+        state.sidecar_news_path.clone(),
+        interval_seconds.unwrap_or(300),
+        use_web_search.unwrap_or(true),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn stop_autonomous_mode(_state: State<'_, AppState>) -> Result<(), String> {
+    autonomous::scheduler::stop_autonomous_mode();
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn is_autonomous_running(_state: State<'_, AppState>) -> Result<bool, String> {
+    Ok(autonomous::scheduler::is_autonomous_running())
+}
+
+#[tauri::command]
+pub async fn get_autonomous_status(_state: State<'_, AppState>) -> Result<autonomous::scheduler::AutonomousStatus, String> {
+    Ok(autonomous::scheduler::AutonomousStatus {
+        running: autonomous::scheduler::is_autonomous_running(),
+        last_scan_at: None,
+        total_scans: 0,
+        total_alerts: 0,
+        tickers_monitored: 0,
+    })
+}
+
+#[tauri::command]
+pub async fn analyze_ticker_for_alerts(
+    state: State<'_, AppState>,
+    ticker: String,
+    use_web_search: Option<bool>,
+) -> Result<Vec<alerts::Alert>, String> {
+    let sidecar_vision_path = state.sidecar_vision_path.clone();
+    let sidecar_news_path = state.sidecar_news_path.clone();
+    let use_web_search = use_web_search.unwrap_or(false);
+
+    let result = scanner::engine::run_single_analysis(
+        state.db.clone(),
+        &sidecar_vision_path,
+        &sidecar_news_path,
+        &ticker,
+        None,
+        None,
+        use_web_search,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if let Some(ref snapshot) = result.technical_snapshot {
+        let bars = Vec::new();
+        Ok(alerts::evaluate_alerts(snapshot, &bars))
+    } else {
+        Ok(vec![])
+    }
+}
+
+#[tauri::command]
+pub async fn get_notifications(
+    _state: State<'_, AppState>,
+    limit: Option<i32>,
+    unread_only: Option<bool>,
+) -> Result<Vec<notifications::Notification>, String> {
+    let db_path = get_db_path_for_autonomous();
+    let conn = notifications::NotificationStore::new(
+        rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?,
+    );
+    conn.get_notifications(limit.unwrap_or(50), unread_only.unwrap_or(false))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_unread_count(_state: State<'_, AppState>) -> Result<i64, String> {
+    let db_path = get_db_path_for_autonomous();
+    let conn = notifications::NotificationStore::new(
+        rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?,
+    );
+    conn.get_unread_count().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn mark_notification_read(
+    _state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    let db_path = get_db_path_for_autonomous();
+    let conn = notifications::NotificationStore::new(
+        rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?,
+    );
+    conn.mark_read(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn mark_all_notifications_read(_state: State<'_, AppState>) -> Result<(), String> {
+    let db_path = get_db_path_for_autonomous();
+    let conn = notifications::NotificationStore::new(
+        rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?,
+    );
+    conn.mark_all_read().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn clear_old_notifications(
+    _state: State<'_, AppState>,
+    days: i64,
+) -> Result<usize, String> {
+    let db_path = get_db_path_for_autonomous();
+    let conn = notifications::NotificationStore::new(
+        rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?,
+    );
+    conn.clear_old(days).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn batch_analyze_for_signals(
+    state: State<'_, AppState>,
+    tickers: Vec<String>,
+    use_web_search: Option<bool>,
+) -> Result<Vec<(String, Vec<alerts::Alert>)>, String> {
+    let use_web_search = use_web_search.unwrap_or(false);
+    let mut results = Vec::new();
+
+    for ticker in &tickers {
+        let result = scanner::engine::run_single_analysis(
+            state.db.clone(),
+            &state.sidecar_vision_path,
+            &state.sidecar_news_path,
+            ticker,
+            None,
+            None,
+            use_web_search,
+        )
+        .await;
+
+        if let Ok(analysis) = result {
+            if let Some(ref snapshot) = analysis.technical_snapshot {
+                let bars = Vec::new();
+                let alert_list = alerts::evaluate_alerts(snapshot, &bars);
+                results.push((ticker.clone(), alert_list));
+            }
+        }
+
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    }
+
+    Ok(results)
+}
+
+fn get_db_path_for_autonomous() -> String {
+    let app_dir = dirs::data_local_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("Lookout");
+    std::fs::create_dir_all(&app_dir).ok();
+    app_dir.join("lookout.db").to_string_lossy().to_string()
 }
