@@ -10,6 +10,91 @@ import {
 } from "../lib/tauri-bridge";
 import { useWatchlistStore } from "../stores/useWatchlistStore";
 
+const regionMap: Record<string, { label: string; emoji: string }> = {
+  US: { label: "United States", emoji: "🇺🇸" },
+  UK: { label: "United Kingdom", emoji: "🇬🇧" },
+  DE: { label: "Germany", emoji: "🇩🇪" },
+  FR: { label: "France", emoji: "🇫🇷" },
+  EU: { label: "Europe", emoji: "🇪🇺" },
+  JP: { label: "Japan", emoji: "🇯🇵" },
+  HK: { label: "Hong Kong", emoji: "🇭🇰" },
+  CN: { label: "China", emoji: "🇨🇳" },
+  KR: { label: "South Korea", emoji: "🇰🇷" },
+  TW: { label: "Taiwan", emoji: "🇹🇼" },
+  IN: { label: "India", emoji: "🇮🇳" },
+  SG: { label: "Singapore", emoji: "🇸🇬" },
+  MY: { label: "Malaysia", emoji: "🇲🇾" },
+  TH: { label: "Thailand", emoji: "🇹🇭" },
+  ID: { label: "Indonesia", emoji: "🇮🇩" },
+  PH: { label: "Philippines", emoji: "🇵🇭" },
+  VN: { label: "Vietnam", emoji: "🇻🇳" },
+  CA: { label: "Canada", emoji: "🇨🇦" },
+  BR: { label: "Brazil", emoji: "🇧🇷" },
+  MX: { label: "Mexico", emoji: "🇲🇽" },
+  CL: { label: "Chile", emoji: "🇨🇱" },
+  PE: { label: "Peru", emoji: "🇵🇪" },
+  CO: { label: "Colombia", emoji: "🇨🇴" },
+  AR: { label: "Argentina", emoji: "🇦🇷" },
+  SA: { label: "Saudi Arabia", emoji: "🇸🇦" },
+  AE: { label: "UAE", emoji: "🇦🇪" },
+  QA: { label: "Qatar", emoji: "🇶🇦" },
+  KW: { label: "Kuwait", emoji: "🇰🇼" },
+  BH: { label: "Bahrain", emoji: "🇧🇭" },
+  OM: { label: "Oman", emoji: "🇴🇲" },
+  IL: { label: "Israel", emoji: "🇮🇱" },
+  TR: { label: "Turkey", emoji: "🇹🇷" },
+  ZA: { label: "South Africa", emoji: "🇿🇦" },
+  EG: { label: "Egypt", emoji: "🇪🇬" },
+  NG: { label: "Nigeria", emoji: "🇳🇬" },
+  KE: { label: "Kenya", emoji: "🇰🇪" },
+  MA: { label: "Morocco", emoji: "🇲🇦" },
+  RU: { label: "Russia", emoji: "🇷🇺" },
+  PL: { label: "Poland", emoji: "🇵🇱" },
+  CZ: { label: "Czech Republic", emoji: "🇨🇿" },
+  GR: { label: "Greece", emoji: "🇬🇷" },
+  ES: { label: "Spain", emoji: "🇪🇸" },
+  CH: { label: "Switzerland", emoji: "🇨🇭" },
+  AU: { label: "Australia", emoji: "🇦🇺" },
+  GLOBAL: { label: "Global ETFs", emoji: "🌐" },
+};
+
+function getRegionKey(key: string): string {
+  const upper = key.toUpperCase();
+  for (const code of Object.keys(regionMap)) {
+    if (upper.startsWith(code)) return code;
+  }
+  if (upper.includes("EURO")) return "EU";
+  if (upper.includes("GLOBAL")) return "GLOBAL";
+  if (upper.includes("FTSE")) return "UK";
+  if (upper.includes("DAX")) return "DE";
+  if (upper.includes("CAC")) return "FR";
+  if (upper.includes("NIKKEI") || upper.includes("TOPIX")) return "JP";
+  if (upper.includes("HANG") || upper.includes("HSI")) return "HK";
+  if (upper.includes("SSE") || upper.includes("SZSE") || upper.includes("SHANGHAI") || upper.includes("SHENZHEN")) return "CN";
+  if (upper.includes("KOSPI") || upper.includes("KOSDAQ")) return "KR";
+  if (upper.includes("TWSE") || upper.includes("TPEX") || upper.includes("TAIEX")) return "TW";
+  if (upper.includes("BSE") || upper.includes("NSE")) return "IN";
+  if (upper.includes("SGX")) return "SG";
+  if (upper.includes("BURSA") || upper.includes("KLCI")) return "MY";
+  if (upper.includes("SET")) return "TH";
+  if (upper.includes("IDX") || upper.includes("JAKARTA")) return "ID";
+  if (upper.includes("PSE")) return "PH";
+  if (upper.includes("HOSE") || upper.includes("VN")) return "VN";
+  if (upper.includes("TSX")) return "CA";
+  if (upper.includes("BOVESPA") || upper.includes("B3")) return "BR";
+  if (upper.includes("IPC") || upper.includes("MEXICO")) return "MX";
+  if (upper.includes("TADAWUL")) return "SA";
+  if (upper.includes("BIST")) return "TR";
+  if (upper.includes("ASX")) return "AU";
+  if (upper.includes("MOEX") || upper.includes("MOSS")) return "RU";
+  if (upper.includes("GPW") || upper.includes("WARSAW")) return "PL";
+  if (upper.includes("SIX")) return "CH";
+  if (upper.includes("BME") || upper.includes("MADRID")) return "ES";
+  if (upper.includes("JSE")) return "ZA";
+  if (upper.includes("TASE") || upper.includes("TEL_AVIV")) return "IL";
+  return "GLOBAL";
+}
+
 export function ScannerView() {
   const { items, fetchWatchlist } = useWatchlistStore();
   const [indices, setIndices] = useState<MarketIndex[]>([]);
@@ -75,27 +160,17 @@ export function ScannerView() {
     }
   };
 
-  const regions = [
-    { label: "🇺🇸 United States", keys: ["sp500", "nasdaq100", "dowjones"] },
-    { label: "🇬🇧 United Kingdom", keys: ["ftse100"] },
-    { label: "🇩🇪 Germany", keys: ["dax40"] },
-    { label: "🇫🇷 France", keys: ["cac40"] },
-    { label: "🇪🇺 Europe", keys: ["eurostoxx50"] },
-    { label: "🇯🇵 Japan", keys: ["nikkei225"] },
-    { label: "🇭🇰 Hong Kong", keys: ["hangseng"] },
-    { label: "🇨🇳 China", keys: ["sse"] },
-    { label: "🇰🇷 South Korea", keys: ["kospi"] },
-    { label: "🇹🇼 Taiwan", keys: ["twse"] },
-    { label: "🇨🇦 Canada", keys: ["tsx60"] },
-    { label: "🇧🇷 Brazil", keys: ["bovespa"] },
-    { label: "🇲🇽 Mexico", keys: ["ipc"] },
-    { label: "🇸🇦 Saudi Arabia", keys: ["tadawul"] },
-    { label: "🇹🇷 Turkey", keys: ["bist100"] },
-    { label: "🇦🇺 Australia", keys: ["asx200"] },
-    { label: "🌐 Global ETFs", keys: ["etfs"] },
-  ];
+  const grouped = indices.reduce<Record<string, MarketIndex[]>>((acc, idx) => {
+    const regionKey = getRegionKey(idx.key);
+    if (!acc[regionKey]) acc[regionKey] = [];
+    acc[regionKey].push(idx);
+    return acc;
+  }, {});
 
-  const findIndex = (key: string) => indices.find((i) => i.key === key);
+  const regionOrder = Object.keys(grouped).sort((a, b) => {
+    const order = ["US", "CA", "BR", "MX", "CL", "PE", "CO", "AR", "UK", "DE", "FR", "EU", "ES", "CH", "PL", "CZ", "GR", "JP", "CN", "KR", "TW", "IN", "SG", "MY", "TH", "ID", "PH", "VN", "SA", "AE", "QA", "KW", "BH", "OM", "IL", "TR", "ZA", "EG", "NG", "KE", "MA", "RU", "AU", "GLOBAL"];
+    return order.indexOf(a) - order.indexOf(b);
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -119,6 +194,9 @@ export function ScannerView() {
         <h3 className="text-accent-purple text-xs font-semibold mb-2 uppercase tracking-wide">
           Add Market Index
         </h3>
+        <p className="text-fg-muted text-xs mb-2">
+          {indices.length} indices available
+        </p>
         <div className="flex gap-2">
           <select
             value={selectedIndex}
@@ -126,18 +204,18 @@ export function ScannerView() {
             className="flex-1 bg-bg-tertiary text-fg-primary border border-border rounded px-3 py-1.5 text-sm"
           >
             <option value="">Select index...</option>
-            {regions.map((region) => (
-              <optgroup key={region.label} label={region.label}>
-                {region.keys.map((key) => {
-                  const idx = findIndex(key);
-                  return idx ? (
-                    <option key={key} value={key}>
+            {regionOrder.map((regionKey) => {
+              const region = regionMap[regionKey] || { label: regionKey, emoji: "📊" };
+              return (
+                <optgroup key={regionKey} label={`${region.emoji} ${region.label}`}>
+                  {(grouped[regionKey] || []).map((idx) => (
+                    <option key={idx.key} value={idx.key}>
                       {idx.label}
                     </option>
-                  ) : null;
-                })}
-              </optgroup>
-            ))}
+                  ))}
+                </optgroup>
+              );
+            })}
           </select>
           <button
             onClick={handleAddIndex}
