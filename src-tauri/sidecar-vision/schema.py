@@ -28,7 +28,7 @@ class VisionData(BaseModel):
 class VisionRequest(BaseModel):
     image_base64: str
     request_id: str
-    model: str = "anthropic/claude-sonnet-4-6"
+    model: str = "xiaomi/mimo-v2.5"
 
 
 class VisionResponse(BaseModel):

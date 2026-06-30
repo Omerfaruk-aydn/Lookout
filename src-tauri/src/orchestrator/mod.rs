@@ -41,6 +41,16 @@ pub struct SentimentResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebSearchResult {
+    pub ticker: String,
+    pub summary: String,
+    pub key_topics: Vec<String>,
+    pub sentiment: String,
+    pub notable_sources: Vec<String>,
+    pub confidence: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SynthesisReport {
     pub ticker: String,
     pub summary: String,
@@ -57,6 +67,7 @@ pub struct FullAnalysisResult {
     pub vision_result: Option<VisionResult>,
     pub technical_snapshot: Option<TechnicalSnapshot>,
     pub sentiment_result: Option<SentimentResult>,
+    pub web_search_result: Option<WebSearchResult>,
     pub synthesis_report: SynthesisReport,
     pub report_id: String,
     pub created_at: i64,
@@ -128,16 +139,50 @@ pub async fn call_news_sidecar(
     }
 }
 
+pub async fn call_web_search_sidecar(
+    sidecar_path: &str,
+    ticker: &str,
+    model: &str,
+) -> Result<WebSearchResult, LookoutError> {
+    let script_path = format!("{}/sidecar-web/web_search.py", sidecar_path);
+    let request_id = uuid::Uuid::new_v4().to_string();
+
+    let request = serde_json::json!({
+        "ticker": ticker,
+        "request_id": request_id,
+        "max_queries": 3,
+        "model": model,
+    });
+
+    let response = run_sidecar_with_timeout(&script_path, &request.to_string(), 60).await?;
+    let parsed: serde_json::Value = serde_json::from_str(&response)
+        .map_err(|e| LookoutError::SchemaValidationError(format!("Web search response: {}", e)))?;
+
+    if parsed["success"].as_bool().unwrap_or(false) {
+        let data = parsed["data"].clone();
+        let web: WebSearchResult = serde_json::from_value(data)
+            .map_err(|e| LookoutError::SchemaValidationError(format!("Web search data: {}", e)))?;
+        Ok(web)
+    } else {
+        let error = parsed["error"]
+            .as_str()
+            .unwrap_or("Unknown web search error")
+            .to_string();
+        Err(LookoutError::DataProviderError(error))
+    }
+}
+
 pub async fn synthesize_report(
     vision: Option<&VisionResult>,
     technical: Option<&TechnicalSnapshot>,
     sentiment: Option<&SentimentResult>,
+    web_search: Option<&WebSearchResult>,
     ticker: &str,
 ) -> Result<SynthesisReport, LookoutError> {
     let api_key = std::env::var("OPENROUTER_API_KEY")
         .map_err(|_| LookoutError::ConfigError("OPENROUTER_API_KEY not set".to_string()))?;
 
-    let prompt = prompt_builder::build_synthesis_prompt(vision, technical, sentiment);
+    let prompt = prompt_builder::build_synthesis_prompt(vision, technical, sentiment, web_search);
 
     let client = reqwest::Client::new();
     let response = client
@@ -145,7 +190,7 @@ pub async fn synthesize_report(
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({
-            "model": "anthropic/claude-sonnet-4-6",
+            "model": "xiaomi/mimo-v2.5",
             "messages": [
                 {"role": "system", "content": prompt_builder::SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}
@@ -177,6 +222,10 @@ pub async fn synthesize_report(
 }
 
 async fn run_sidecar(script_path: &str, input: &str) -> Result<String, LookoutError> {
+    run_sidecar_with_timeout(script_path, input, 30).await
+}
+
+async fn run_sidecar_with_timeout(script_path: &str, input: &str, timeout_secs: u64) -> Result<String, LookoutError> {
     let mut child = Command::new("python")
         .arg(script_path)
         .stdin(Stdio::piped())
@@ -210,7 +259,7 @@ async fn run_sidecar(script_path: &str, input: &str) -> Result<String, LookoutEr
     let mut line = String::new();
 
     let result = tokio::time::timeout(
-        std::time::Duration::from_secs(30),
+        std::time::Duration::from_secs(timeout_secs),
         reader.read_line(&mut line),
     )
     .await;
@@ -222,7 +271,7 @@ async fn run_sidecar(script_path: &str, input: &str) -> Result<String, LookoutEr
             e
         ))),
         Err(_) => Err(LookoutError::TimeoutError(
-            "Sidecar response timed out (30s)".to_string(),
+            format!("Sidecar response timed out ({}s)", timeout_secs),
         )),
     }
 }

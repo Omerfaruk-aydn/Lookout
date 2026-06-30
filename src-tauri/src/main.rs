@@ -4,6 +4,7 @@ mod data_engine;
 mod db;
 mod error;
 mod orchestrator;
+mod scanner;
 
 use db::Database;
 use std::sync::Arc;
@@ -50,6 +51,13 @@ fn main() {
             commands::get_report_by_id,
             commands::get_settings,
             commands::save_setting,
+            commands::get_market_indices,
+            commands::get_index_symbols,
+            commands::run_batch_scan,
+            commands::start_auto_scanner,
+            commands::stop_auto_scanner,
+            commands::is_scanner_running,
+            commands::add_index_to_watchlist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Lookout");
@@ -64,10 +72,23 @@ fn get_db_path() -> String {
 }
 
 fn get_sidecar_path(name: &str) -> String {
-    std::env::current_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    let sidecar_dir = exe_dir.join(name);
+    if sidecar_dir.exists() {
+        return sidecar_dir.to_string_lossy().to_string();
+    }
+
+    let fallback = exe_dir
+        .join("../../..")
         .join("src-tauri")
-        .join(name)
-        .to_string_lossy()
-        .to_string()
+        .join(name);
+    if fallback.exists() {
+        return fallback.to_string_lossy().to_string();
+    }
+
+    sidecar_dir.to_string_lossy().to_string()
 }

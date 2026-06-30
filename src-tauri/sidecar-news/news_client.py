@@ -39,7 +39,7 @@ class NewsRequest(BaseModel):
     ticker: str
     hours_back: int = 48
     request_id: str
-    model: str = "anthropic/claude-haiku-3.5"
+    model: str = "xiaomi/mimo-v2.5"
 
 
 class NewsResponse(BaseModel):

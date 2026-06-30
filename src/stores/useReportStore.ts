@@ -12,7 +12,7 @@ interface ReportState {
   analyzing: boolean;
   loading: boolean;
   error: string | null;
-  analyzeTicker: (ticker: string, imageBase64?: string) => Promise<void>;
+  analyzeTicker: (ticker: string, imageBase64?: string, useWebSearch?: boolean) => Promise<void>;
   fetchHistory: (ticker?: string) => Promise<void>;
   clearCurrent: () => void;
 }
@@ -24,10 +24,10 @@ export const useReportStore = create<ReportState>((set) => ({
   loading: false,
   error: null,
 
-  analyzeTicker: async (ticker: string, imageBase64?: string) => {
+  analyzeTicker: async (ticker: string, imageBase64?: string, useWebSearch = true) => {
     set({ analyzing: true, error: null, currentReport: null });
     try {
-      const result = await runAnalysis(ticker, imageBase64);
+      const result = await runAnalysis(ticker, imageBase64, useWebSearch);
       set({ currentReport: result, analyzing: false });
     } catch (e) {
       set({ error: String(e), analyzing: false });

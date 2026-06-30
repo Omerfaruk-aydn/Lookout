@@ -3,12 +3,8 @@ use crate::error::LookoutError;
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "windows")]
-use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
-#[cfg(target_os = "windows")]
-use windows::Win32::System::ProcessStatus::GetModuleBaseNameW;
-#[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GetWindowTextW, IsWindow, GetWindowThreadProcessId,
+    EnumWindows, GetWindowTextW, IsWindow,
 };
 
 #[cfg(target_os = "windows")]
@@ -16,7 +12,6 @@ use std::sync::Mutex;
 
 #[cfg(target_os = "windows")]
 struct WindowSearchState {
-    target_title: String,
     found_hwnd: Option<isize>,
 }
 
@@ -36,7 +31,6 @@ pub fn find_webull_window() -> Result<isize, LookoutError> {
     }
 
     let state = std::sync::Arc::new(Mutex::new(WindowSearchState {
-        target_title: "Webull".to_string(),
         found_hwnd: None,
     }));
 
@@ -77,35 +71,13 @@ unsafe extern "system" fn enum_windows_callback(
     let title = String::from_utf16_lossy(&title_buf[..len]);
 
     if title.contains("Webull") {
-        let mut pid: u32 = 0;
-        unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
-
-        if is_webull_process(pid) {
-            if let Ok(mut locked) = state.lock() {
-                locked.found_hwnd = Some(hwnd.0 as isize);
-                return windows::Win32::Foundation::BOOL(0);
-            }
+        if let Ok(mut locked) = state.lock() {
+            locked.found_hwnd = Some(hwnd.0 as isize);
+            return windows::Win32::Foundation::BOOL(0);
         }
     }
 
     windows::Win32::Foundation::BOOL(1)
-}
-
-#[cfg(target_os = "windows")]
-fn is_webull_process(pid: u32) -> bool {
-    unsafe {
-        let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
-        if let Ok(handle) = handle {
-            let mut name_buf = [0u16; 260];
-            let len = GetModuleBaseNameW(handle, None, &mut name_buf) as usize;
-            let _ = windows::Win32::Foundation::CloseHandle(handle);
-            if len > 0 {
-                let name = String::from_utf16_lossy(&name_buf[..len]);
-                return name.to_lowercase().contains("webull");
-            }
-        }
-    }
-    false
 }
 
 #[cfg(not(target_os = "windows"))]

@@ -7,11 +7,14 @@ import { Watchlist } from "./Watchlist";
 import { ChartView } from "./ChartView";
 import { HistoryView } from "./HistoryView";
 
-type Tab = "analysis" | "watchlist" | "chart" | "history";
+import { ScannerView } from "./ScannerView";
+
+type Tab = "analysis" | "watchlist" | "chart" | "history" | "scanner";
 
 export function OverlayPanel() {
   const [activeTab, setActiveTab] = useState<Tab>("analysis");
   const [tickerInput, setTickerInput] = useState("");
+  const [useWebSearch, setUseWebSearch] = useState(true);
   const { currentReport, analyzing, error, analyzeTicker, clearCurrent } =
     useReportStore();
   const { regionConfig } = useSettingsStore();
@@ -44,12 +47,13 @@ export function OverlayPanel() {
       }
     }
 
-    await analyzeTicker(tickerInput.toUpperCase().trim(), imageBase64);
-  }, [tickerInput, regionConfig, analyzeTicker, clearCurrent]);
+    await analyzeTicker(tickerInput.toUpperCase().trim(), imageBase64, useWebSearch);
+  }, [tickerInput, regionConfig, analyzeTicker, clearCurrent, useWebSearch]);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "analysis", label: "Analysis" },
     { key: "watchlist", label: "Watchlist" },
+    { key: "scanner", label: "Scanner" },
     { key: "chart", label: "Chart" },
     { key: "history", label: "History" },
   ];
@@ -77,6 +81,18 @@ export function OverlayPanel() {
         >
           {analyzing ? "Analyzing..." : "Analyze"}
         </button>
+      </div>
+
+      <div className="flex items-center gap-3 px-4 py-1 bg-bg-secondary border-b border-border">
+        <label className="flex items-center gap-2 text-xs text-fg-primary">
+          <input
+            type="checkbox"
+            checked={useWebSearch}
+            onChange={(e) => setUseWebSearch(e.target.checked)}
+            className="rounded border-border bg-bg-tertiary text-accent-blue"
+          />
+          AI Web Search
+        </label>
       </div>
 
       <nav className="flex border-b border-border bg-bg-secondary">
@@ -127,6 +143,7 @@ export function OverlayPanel() {
         )}
 
         {activeTab === "watchlist" && <Watchlist />}
+        {activeTab === "scanner" && <ScannerView />}
         {activeTab === "chart" && <ChartView />}
         {activeTab === "history" && <HistoryView />}
       </main>

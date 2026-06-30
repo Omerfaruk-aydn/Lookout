@@ -26,6 +26,7 @@ export interface ReportRecord {
   vision_result_json: string | null;
   technical_snapshot_json: string | null;
   sentiment_result_json: string | null;
+  web_search_result_json: string | null;
   synthesis_report_json: string;
   confidence_level: string;
 }
@@ -95,11 +96,21 @@ export interface SentimentResult {
   item_count: number;
 }
 
+export interface WebSearchResult {
+  ticker: string;
+  summary: string;
+  key_topics: string[];
+  sentiment: string;
+  notable_sources: string[];
+  confidence: number;
+}
+
 export interface FullAnalysisResult {
   ticker: string;
   vision_result: VisionResult | null;
   technical_snapshot: TechnicalSnapshot | null;
   sentiment_result: SentimentResult | null;
+  web_search_result: WebSearchResult | null;
   synthesis_report: SynthesisReport;
   report_id: string;
   created_at: number;
@@ -115,6 +126,18 @@ export interface CaptureRect {
   y: number;
   width: number;
   height: number;
+}
+
+export interface ScanResult {
+  ticker: string;
+  success: boolean;
+  report_id: string | null;
+  error: string | null;
+}
+
+export interface MarketIndex {
+  key: string;
+  label: string;
 }
 
 export async function findWebull(): Promise<number> {
@@ -146,11 +169,13 @@ export async function getRegionConfig(): Promise<RegionConfig | null> {
 
 export async function runAnalysis(
   ticker: string,
-  imageBase64?: string
+  imageBase64?: string,
+  useWebSearch = true
 ): Promise<FullAnalysisResult> {
   return invoke<FullAnalysisResult>("run_analysis", {
     ticker,
     imageBase64: imageBase64 ?? null,
+    useWebSearch,
   });
 }
 
@@ -191,4 +216,44 @@ export async function saveSetting(
   value: string
 ): Promise<void> {
   return invoke("save_setting", { key, value });
+}
+
+export async function getMarketIndices(): Promise<MarketIndex[]> {
+  return invoke<MarketIndex[]>("get_market_indices");
+}
+
+export async function getIndexSymbols(index: string): Promise<string[]> {
+  return invoke<string[]>("get_index_symbols", { index });
+}
+
+export async function addIndexToWatchlist(index: string): Promise<number> {
+  return invoke<number>("add_index_to_watchlist", { index });
+}
+
+export async function runBatchScan(
+  tickers: string[],
+  useWebSearch = true
+): Promise<ScanResult[]> {
+  return invoke<ScanResult[]>("run_batch_scan", {
+    tickers,
+    useWebSearch,
+  });
+}
+
+export async function startAutoScanner(
+  intervalMinutes: number,
+  useWebSearch = true
+): Promise<void> {
+  return invoke("start_auto_scanner", {
+    intervalMinutes,
+    useWebSearch,
+  });
+}
+
+export async function stopAutoScanner(): Promise<void> {
+  return invoke("stop_auto_scanner");
+}
+
+export async function isScannerRunning(): Promise<boolean> {
+  return invoke<boolean>("is_scanner_running");
 }

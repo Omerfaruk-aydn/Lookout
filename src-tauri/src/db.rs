@@ -32,6 +32,7 @@ pub struct ReportRecord {
     pub vision_result_json: Option<String>,
     pub technical_snapshot_json: Option<String>,
     pub sentiment_result_json: Option<String>,
+    pub web_search_result_json: Option<String>,
     pub synthesis_report_json: String,
     pub confidence_level: String,
 }
@@ -78,6 +79,7 @@ impl Database {
                 vision_result_json TEXT,
                 technical_snapshot_json TEXT,
                 sentiment_result_json TEXT,
+                web_search_result_json TEXT,
                 synthesis_report_json TEXT NOT NULL,
                 confidence_level TEXT NOT NULL
             );
@@ -175,8 +177,8 @@ impl Database {
 
     pub fn save_report(&self, report: &ReportRecord) -> Result<(), LookoutError> {
         self.conn.execute(
-            "INSERT INTO reports (id, ticker, created_at, vision_result_json, technical_snapshot_json, sentiment_result_json, synthesis_report_json, confidence_level)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO reports (id, ticker, created_at, vision_result_json, technical_snapshot_json, sentiment_result_json, web_search_result_json, synthesis_report_json, confidence_level)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 report.id,
                 report.ticker,
@@ -184,6 +186,7 @@ impl Database {
                 report.vision_result_json,
                 report.technical_snapshot_json,
                 report.sentiment_result_json,
+                report.web_search_result_json,
                 report.synthesis_report_json,
                 report.confidence_level,
             ],
@@ -194,12 +197,12 @@ impl Database {
     pub fn get_reports(&self, ticker: Option<&str>, limit: i32) -> Result<Vec<ReportRecord>, LookoutError> {
         let (sql, needs_ticker) = if let Some(_t) = ticker {
             (
-                "SELECT id, ticker, created_at, vision_result_json, technical_snapshot_json, sentiment_result_json, synthesis_report_json, confidence_level FROM reports WHERE ticker = ?1 ORDER BY created_at DESC LIMIT ?2",
+                "SELECT id, ticker, created_at, vision_result_json, technical_snapshot_json, sentiment_result_json, web_search_result_json, synthesis_report_json, confidence_level FROM reports WHERE ticker = ?1 ORDER BY created_at DESC LIMIT ?2",
                 true,
             )
         } else {
             (
-                "SELECT id, ticker, created_at, vision_result_json, technical_snapshot_json, sentiment_result_json, synthesis_report_json, confidence_level FROM reports ORDER BY created_at DESC LIMIT ?1",
+                "SELECT id, ticker, created_at, vision_result_json, technical_snapshot_json, sentiment_result_json, web_search_result_json, synthesis_report_json, confidence_level FROM reports ORDER BY created_at DESC LIMIT ?1",
                 false,
             )
         };
@@ -218,7 +221,7 @@ impl Database {
 
     pub fn get_report_by_id(&self, id: &str) -> Result<Option<ReportRecord>, LookoutError> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, ticker, created_at, vision_result_json, technical_snapshot_json, sentiment_result_json, synthesis_report_json, confidence_level FROM reports WHERE id = ?1",
+            "SELECT id, ticker, created_at, vision_result_json, technical_snapshot_json, sentiment_result_json, web_search_result_json, synthesis_report_json, confidence_level FROM reports WHERE id = ?1",
         )?;
 
         let mut rows = stmt.query(params![id])?;
@@ -276,8 +279,9 @@ impl Database {
             vision_result_json: row.get(3)?,
             technical_snapshot_json: row.get(4)?,
             sentiment_result_json: row.get(5)?,
-            synthesis_report_json: row.get(6)?,
-            confidence_level: row.get(7)?,
+            web_search_result_json: row.get(6)?,
+            synthesis_report_json: row.get(7)?,
+            confidence_level: row.get(8)?,
         })
     }
 }

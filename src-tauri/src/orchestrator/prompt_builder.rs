@@ -1,13 +1,14 @@
-use super::{SentimentResult, VisionResult};
+use super::{SentimentResult, VisionResult, WebSearchResult};
 use crate::data_engine::TechnicalSnapshot;
 
-pub const SYSTEM_PROMPT: &str = r#"Sen bir finansal analiz asistanısın. Sana 3 farklı kaynaktan veri verilecek:
+pub const SYSTEM_PROMPT: &str = r#"Sen bir finansal analiz asistanısın. Sana 4 farklı kaynaktan veri verilecek:
 
 1. GÖRSEL ANALİZ (düşük güvenilirlik, ekrandan okunan yorum — sadece genel yön/pattern fikri için kullan, sayısal değerlerine güvenme)
 2. TEKNİK VERİ (yüksek güvenilirlik, gerçek hesaplanmış indikatörler — kesin sayılar buradan gelir)
 3. HABER SENTIMENT (son 48 saatteki haberlerin toplu duygu analizi)
+4. WEB ARAŞTIRMASI (internetten canlı arama ile elde edilen güncel piyasa yorumu ve haber özeti)
 
-GÖREV: Bu üç kaynağı birleştirip kullanıcıya YAPISAL BİR DURUM RAPORU sun. Aşağıdaki formatı KESİNLİKLE takip et:
+GÖREV: Bu dört kaynağı birleştirip kullanıcıya YAPISAL BİR DURUM RAPORU sun. Aşağıdaki formatı KESİNLİKLE takip et:
 
 {
   "ticker": "...",
@@ -22,13 +23,14 @@ GÖREV: Bu üç kaynağı birleştirip kullanıcıya YAPISAL BİR DURUM RAPORU s
 KESİN KURALLAR:
 - ASLA "al", "sat", "şimdi gir/çık" gibi emir niteliğinde ifade kullanma.
 - ASLA görsel analizdeki sayısal tahminleri (fiyat, RSI vb.) teknik veri ile çelişiyorsa görseli tercih etme — teknik veri her zaman önceliklidir.
-- Eğer 3 kaynaktan biri eksik/başarısızsa, bunu confidence_level'a yansıt ve hangi kaynağın eksik olduğunu belirt.
+- Eğer 4 kaynaktan biri eksik/başarısızsa, bunu confidence_level'a yansıt ve hangi kaynağın eksik olduğunu belirt.
 - Sadece JSON döndür, başka metin ekleme."#;
 
 pub fn build_synthesis_prompt(
     vision: Option<&VisionResult>,
     technical: Option<&TechnicalSnapshot>,
     sentiment: Option<&SentimentResult>,
+    web_search: Option<&WebSearchResult>,
 ) -> String {
     let mut prompt = String::new();
 
@@ -141,6 +143,23 @@ pub fn build_synthesis_prompt(
         prompt.push_str(&format!("  - Item count: {}\n", s.item_count));
     } else {
         prompt.push_str("3. HABER SENTIMENT: VERİ YOK (haber bulunamadı veya hata)\n");
+    }
+
+    prompt.push('\n');
+
+    if let Some(w) = web_search {
+        prompt.push_str("4. WEB ARAŞTIRMASI (internetten güncel):\n");
+        prompt.push_str(&format!("  - Summary: {}\n", w.summary));
+        prompt.push_str(&format!("  - Sentiment: {}\n", w.sentiment));
+        if !w.key_topics.is_empty() {
+            prompt.push_str(&format!("  - Key topics: {:?}\n", w.key_topics));
+        }
+        if !w.notable_sources.is_empty() {
+            prompt.push_str(&format!("  - Sources: {:?}\n", w.notable_sources));
+        }
+        prompt.push_str(&format!("  - Confidence: {:.0}%\n", w.confidence * 100.0));
+    } else {
+        prompt.push_str("4. WEB ARAŞTIRMASI: VERİ YOK (arama yapılamadı veya hata)\n");
     }
 
     prompt

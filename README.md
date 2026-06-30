@@ -14,7 +14,8 @@ A Webull Desktop companion application that visually interprets on-screen charts
 - **LLM Gateway:** OpenRouter API
 - **Market Data:** yfinance (Python sidecar)
 - **News:** Finnhub News API
-- **Screen Capture:** Windows.Graphics.Capture API (BitBlt fallback)
+- **Web Search:** DuckDuckGo + LLM summarization (Python sidecar)
+- **Screen Capture:** Windows Graphics.Capture API (BitBlt fallback)
 
 ## Prerequisites
 
@@ -37,6 +38,7 @@ npm install
 ```bash
 pip install -r src-tauri/sidecar-vision/requirements.txt
 pip install -r src-tauri/sidecar-news/requirements.txt
+pip install -r src-tauri/sidecar-web/requirements.txt
 ```
 
 3. **Configure environment variables:**
@@ -74,6 +76,7 @@ Lookout/
 │   │   ├── OverlayPanel.tsx      # Main always-on-top panel
 │   │   ├── ReportView.tsx        # Synthesis report display
 │   │   ├── Watchlist.tsx         # Ticker watchlist management
+│   │   ├── ScannerView.tsx       # Batch scan + auto-scan controls
 │   │   ├── ChartView.tsx         # lightweight-charts reference chart
 │   │   └── HistoryView.tsx       # Past reports browser
 │   ├── stores/                   # Zustand state management
@@ -85,13 +88,15 @@ Lookout/
 │   ├── src/
 │   │   ├── capture/              # Screen capture engine
 │   │   ├── data_engine/          # Market data + technical indicators
+│   │   ├── scanner/              # Batch scan + auto-scan scheduler
 │   │   ├── orchestrator/         # Synthesis report generation
 │   │   ├── commands.rs           # Tauri command handlers
 │   │   ├── db.rs                 # SQLite database layer
 │   │   ├── error.rs              # Centralized error types
 │   │   └── main.rs
 │   ├── sidecar-vision/           # Python vision sidecar
-│   └── sidecar-news/             # Python news/sentiment sidecar
+│   ├── sidecar-news/             # Python news/sentiment sidecar
+│   └── sidecar-web/              # Python web search sidecar
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.js
@@ -115,11 +120,12 @@ Lookout/
 The application follows a 6-step pipeline:
 
 1. **Capture Engine** — Takes a screenshot of the Webull chart area using Windows APIs
-2. **Vision Sidecar** — Sends screenshot to LLM for visual chart analysis (parallel with step 3)
-3. **Data Engine** — Fetches real OHLCV data and computes technical indicators (parallel with step 2)
-4. **News Sidecar** — Fetches recent news and runs batch sentiment analysis
-5. **Synthesis Orchestrator** — Combines all 3 data sources into a single LLM call for structured report
-6. **Storage + Display** — Saves to SQLite and pushes to frontend
+2. **Vision Sidecar** — Sends screenshot to LLM for visual chart analysis (parallel with steps 3-4)
+3. **Data Engine** — Fetches real OHLCV data and computes technical indicators (parallel with steps 2, 4)
+4. **News Sidecar** — Fetches recent news and runs batch sentiment analysis (parallel with steps 2-3)
+5. **Web Search Sidecar** — Searches DuckDuckGo for recent market events, summarizes with LLM (parallel with steps 2-4)
+6. **Synthesis Orchestrator** — Combines all 4 data sources into a single LLM call for structured report
+7. **Storage + Display** — Saves to SQLite and pushes to frontend
 
 ## Security
 

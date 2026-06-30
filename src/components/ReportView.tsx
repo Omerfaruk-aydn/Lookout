@@ -110,6 +110,36 @@ export function ReportView({ report }: ReportViewProps) {
         </p>
       </ReportSection>
 
+      {report.web_search_result && (
+        <ReportSection title="Web Research (AI Internet Scan)">
+          <div className="flex items-center gap-2 mb-1">
+            <SentimentBadge sentiment={report.web_search_result.sentiment} />
+            <span className="text-fg-muted text-xs">
+              Confidence: {Math.round(report.web_search_result.confidence * 100)}%
+            </span>
+          </div>
+          <p className="text-fg-primary text-sm leading-relaxed mb-2">
+            {report.web_search_result.summary}
+          </p>
+          {report.web_search_result.key_topics.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {report.web_search_result.key_topics.map((topic: string) => (
+                <span
+                  key={topic}
+                  className="px-2 py-0.5 bg-bg-tertiary text-accent-cyan text-xs rounded"
+                >
+                  {topic}
+                </span>
+              ))}
+            </div>
+          )}
+          {report.web_search_result.notable_sources.length > 0 && (
+            <p className="text-fg-muted text-xs mt-2">
+              Sources: {report.web_search_result.notable_sources.join(", ")}
+            </p>
+          )}
+        </ReportSection>
+      )}
       {report.technical_snapshot && (
         <ReportSection title="Technical Indicators">
           <div className="grid grid-cols-2 gap-2 text-xs font-mono">
